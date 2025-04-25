@@ -205,7 +205,7 @@ export default function FilterPanel({
           onClick={() => setConsultationOpen(!consultationOpen)}
           data-testid="filter-header-moc"
         >
-          <h3 className="font-medium">Mode of consultation</h3>
+          <h3 className="font-medium">Mode of Consultation</h3>
           {consultationOpen ? (
             <ChevronUp size={18} />
           ) : (
@@ -223,7 +223,7 @@ export default function FilterPanel({
                 className="form-radio"
                 data-testid="filter-video-consult"
               />
-              <span>Video Consult</span>
+              <span>Video Consultation</span>
             </label>
 
             <label className="flex items-center space-x-2 cursor-pointer">
@@ -234,7 +234,7 @@ export default function FilterPanel({
                 className="form-radio"
                 data-testid="filter-in-clinic"
               />
-              <span>In Clinic</span>
+              <span>In-Clinic Consultation</span>
             </label>
 
             <label className="flex items-center space-x-2 cursor-pointer">
