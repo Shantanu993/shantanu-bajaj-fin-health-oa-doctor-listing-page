@@ -17,6 +17,7 @@ export default function Home() {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const doctorsPerPage = 10;
+  const [manualPageChange, setManualPageChange] = useState(false);
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -109,10 +110,10 @@ export default function Home() {
     return filtered;
   }, [doctors, searchTerm, consultationType, specialties, sortBy]);
 
-  // Update URL with filter params
   const updateFilters = useCallback(
     (type: string | null, specs: string[], sort: string | null) => {
-      const params = new URLSearchParams(searchParams.toString());
+      // We need to ensure we are handling filters only, not URL state
+      const params = new URLSearchParams(window.location.search);
 
       if (type) {
         params.set("consultationType", type);
@@ -134,27 +135,41 @@ export default function Home() {
 
       // Reset to page 1 when filters change
       params.set("page", "1");
-      setCurrentPage(1);
+      setCurrentPage(1); // Update the page to 1
 
       // Update the URL without refreshing the page
       router.push(`?${params.toString()}`, { scroll: false });
     },
-    [router, searchParams] // Memoize to prevent re-creation
+    [router] // We now only rely on router here
   );
 
   const handleSearchChange = useCallback((value: string) => {
     setSearchTerm(value);
   }, []);
 
-  const handlePageChange = useCallback(
-    (page: number) => {
-      setCurrentPage(page);
+  const handlePageChange = (page: number) => {
+    // Only update the page if it's different from the current one
+    if (page !== currentPage) {
+      setManualPageChange(true); // Track manual page change
+
       const params = new URLSearchParams(searchParams.toString());
       params.set("page", page.toString());
+
       router.push(`?${params.toString()}`, { scroll: false });
-    },
-    [router, searchParams]
-  );
+      setCurrentPage(page); // Update the state with the new page
+    }
+  };
+
+  useEffect(() => {
+    // Retrieve the page number from the URL on initial mount
+    const pageFromURL = new URLSearchParams(window.location.search).get("page");
+    const initialPage = pageFromURL ? Number(pageFromURL) : 1;
+
+    // Update the page if it's different from the currentPage
+    if (initialPage !== currentPage) {
+      setCurrentPage(initialPage);
+    }
+  }, []); // Empty dependency array means this runs only once on mount
 
   // Get current doctors for pagination
   const indexOfLastDoctor = currentPage * doctorsPerPage;
