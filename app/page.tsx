@@ -1,174 +1,176 @@
-"use client"
+"use client";
 
-import { useEffect, useState, useCallback } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-import DoctorCard from "@/components/doctor-card"
-import FilterPanel from "@/components/filter-panel"
-import AutocompleteSearch from "@/components/autocomplete-search"
-import Pagination from "@/components/pagination"
-import type { Doctor } from "@/types/doctor"
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import DoctorCard from "@/components/doctor-card";
+import FilterPanel from "@/components/filter-panel";
+import AutocompleteSearch from "@/components/autocomplete-search";
+import Pagination from "@/components/pagination";
+import type { Doctor } from "@/types/doctor";
 
 export default function Home() {
-  const [doctors, setDoctors] = useState<Doctor[]>([])
-  const [filteredDoctors, setFilteredDoctors] = useState<Doctor[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [searchTerm, setSearchTerm] = useState("")
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Pagination state
-  const [currentPage, setCurrentPage] = useState(1)
-  const doctorsPerPage = 10
+  const [currentPage, setCurrentPage] = useState(1);
+  const doctorsPerPage = 10;
 
-  const router = useRouter()
-  const searchParams = useSearchParams()
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   // Get filter values from URL params
-  const consultationType = searchParams.get("consultationType")
-  const specialties = searchParams.get("specialties")?.split(",").filter(Boolean) || []
-  const sortBy = searchParams.get("sortBy")
-  const page = searchParams.get("page") ? Number.parseInt(searchParams.get("page") || "1") : 1
+  const consultationType = searchParams.get("consultationType");
+  const specialties =
+    searchParams.get("specialties")?.split(",").filter(Boolean) || [];
+  const sortBy = searchParams.get("sortBy");
+  const page = searchParams.get("page")
+    ? Number.parseInt(searchParams.get("page") || "1")
+    : 1;
 
   // Set current page from URL on initial load
   useEffect(() => {
-    setCurrentPage(page)
-  }, [page])
+    setCurrentPage(page);
+  }, [page]);
 
   useEffect(() => {
     const fetchDoctors = async () => {
       try {
-        setLoading(true)
-        const response = await fetch("https://srijandubey.github.io/campus-api-mock/SRM-C1-25.json")
+        setLoading(true);
+        const response = await fetch(
+          "https://srijandubey.github.io/campus-api-mock/SRM-C1-25.json"
+        );
 
         if (!response.ok) {
-          throw new Error("Failed to fetch doctors")
+          throw new Error("Failed to fetch doctors");
         }
 
-        const data = await response.json()
-        setDoctors(data)
-        setFilteredDoctors(data)
+        const data = await response.json();
+        setDoctors(data);
       } catch (err) {
-        setError("Failed to load doctors. Please try again later.")
-        console.error(err)
+        setError("Failed to load doctors. Please try again later.");
+        console.error(err);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchDoctors()
-  }, [])
+    fetchDoctors();
+  }, []);
 
-  // Memoize the filter function to prevent infinite loops
-  const applyFilters = useCallback(() => {
-    if (doctors.length === 0) return
-
-    let filtered = [...doctors]
+  // Memoize the filtered doctors list
+  const filteredDoctors = useMemo(() => {
+    let filtered = [...doctors];
 
     // Filter by search term
     if (searchTerm) {
-      filtered = filtered.filter((doctor) => doctor.name.toLowerCase().includes(searchTerm.toLowerCase()))
+      filtered = filtered.filter((doctor) =>
+        doctor.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
 
     // Filter by consultation type
     if (consultationType) {
       if (consultationType === "video") {
-        filtered = filtered.filter((doctor) => doctor.video_consult)
+        filtered = filtered.filter((doctor) => doctor.video_consult);
       } else if (consultationType === "clinic") {
-        filtered = filtered.filter((doctor) => doctor.in_clinic)
+        filtered = filtered.filter((doctor) => doctor.in_clinic);
       }
-      // "all" option doesn't filter
     }
 
     // Filter by specialties
     if (specialties.length > 0) {
       filtered = filtered.filter((doctor) =>
-        doctor.specialities.some((specialty) => specialties.includes(specialty.name)),
-      )
+        doctor.specialities.some((specialty) =>
+          specialties.includes(specialty.name)
+        )
+      );
     }
 
     // Sort doctors
     if (sortBy) {
       if (sortBy === "fees") {
         filtered.sort((a, b) => {
-          const aFees = Number.parseInt(a.fees.replace(/[^\d]/g, "") || "0")
-          const bFees = Number.parseInt(b.fees.replace(/[^\d]/g, "") || "0")
-          return aFees - bFees
-        })
+          const aFees = Number.parseInt(a.fees.replace(/[^\d]/g, "") || "0");
+          const bFees = Number.parseInt(b.fees.replace(/[^\d]/g, "") || "0");
+          return aFees - bFees;
+        });
       } else if (sortBy === "experience") {
         filtered.sort((a, b) => {
-          const aExp = Number.parseInt(a.experience.match(/\d+/)?.[0] || "0")
-          const bExp = Number.parseInt(b.experience.match(/\d+/)?.[0] || "0")
-          return bExp - aExp // Descending order for experience
-        })
+          const aExp = Number.parseInt(a.experience.match(/\d+/)?.[0] || "0");
+          const bExp = Number.parseInt(b.experience.match(/\d+/)?.[0] || "0");
+          return bExp - aExp; // Descending order for experience
+        });
       }
     }
 
-    setFilteredDoctors(filtered)
-  }, [doctors, searchTerm, consultationType, specialties, sortBy])
-
-  // Apply filters when dependencies change
-  useEffect(() => {
-    applyFilters()
-  }, [applyFilters])
+    return filtered;
+  }, [doctors, searchTerm, consultationType, specialties, sortBy]);
 
   // Update URL with filter params
   const updateFilters = useCallback(
     (type: string | null, specs: string[], sort: string | null) => {
-      const params = new URLSearchParams(searchParams.toString())
+      const params = new URLSearchParams(searchParams.toString());
 
       if (type) {
-        params.set("consultationType", type)
+        params.set("consultationType", type);
       } else {
-        params.delete("consultationType")
+        params.delete("consultationType");
       }
 
       if (specs.length > 0) {
-        params.set("specialties", specs.join(","))
+        params.set("specialties", specs.join(","));
       } else {
-        params.delete("specialties")
+        params.delete("specialties");
       }
 
       if (sort) {
-        params.set("sortBy", sort)
+        params.set("sortBy", sort);
       } else {
-        params.delete("sortBy")
+        params.delete("sortBy");
       }
 
       // Reset to page 1 when filters change
-      params.set("page", "1")
-      setCurrentPage(1)
+      params.set("page", "1");
+      setCurrentPage(1);
 
       // Update the URL without refreshing the page
-      router.push(`?${params.toString()}`, { scroll: false })
+      router.push(`?${params.toString()}`, { scroll: false });
     },
-    [router, searchParams],
-  )
+    [router, searchParams] // Memoize to prevent re-creation
+  );
 
   const handleSearchChange = useCallback((value: string) => {
-    setSearchTerm(value)
-  }, [])
+    setSearchTerm(value);
+  }, []);
 
   const handlePageChange = useCallback(
     (page: number) => {
-      setCurrentPage(page)
-      const params = new URLSearchParams(searchParams.toString())
-      params.set("page", page.toString())
-      router.push(`?${params.toString()}`, { scroll: false })
+      setCurrentPage(page);
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("page", page.toString());
+      router.push(`?${params.toString()}`, { scroll: false });
     },
-    [router, searchParams],
-  )
+    [router, searchParams]
+  );
 
   // Get current doctors for pagination
-  const indexOfLastDoctor = currentPage * doctorsPerPage
-  const indexOfFirstDoctor = indexOfLastDoctor - doctorsPerPage
-  const currentDoctors = filteredDoctors.slice(indexOfFirstDoctor, indexOfLastDoctor)
-  const totalPages = Math.ceil(filteredDoctors.length / doctorsPerPage)
+  const indexOfLastDoctor = currentPage * doctorsPerPage;
+  const indexOfFirstDoctor = indexOfLastDoctor - doctorsPerPage;
+  const currentDoctors = filteredDoctors.slice(
+    indexOfFirstDoctor,
+    indexOfLastDoctor
+  );
+  const totalPages = Math.ceil(filteredDoctors.length / doctorsPerPage);
 
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -179,14 +181,18 @@ export default function Home() {
           <p>{error}</p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
     <main className="min-h-screen bg-gray-100">
       <div className="bg-blue-700 p-4 flex justify-center items-center">
         <div className="w-full max-w-3xl relative">
-          <AutocompleteSearch doctors={doctors} onSearch={handleSearchChange} searchTerm={searchTerm} />
+          <AutocompleteSearch
+            doctors={doctors}
+            onSearch={handleSearchChange}
+            searchTerm={searchTerm}
+          />
         </div>
       </div>
 
@@ -203,27 +209,39 @@ export default function Home() {
 
         <div className="w-full md:w-3/4">
           <div className="bg-white rounded-lg shadow p-4 mb-4">
-            <h2 className="text-xl font-semibold">{filteredDoctors.length} Doctors found</h2>
+            <h2 className="text-xl font-semibold">
+              {filteredDoctors.length} Doctors found
+            </h2>
           </div>
 
           <div className="space-y-4">
             {currentDoctors.length > 0 ? (
-              currentDoctors.map((doctor) => <DoctorCard key={doctor.id} doctor={doctor} />)
+              currentDoctors.map((doctor) => (
+                <DoctorCard key={doctor.id} doctor={doctor} />
+              ))
             ) : (
               <div className="bg-white rounded-lg shadow p-8 text-center">
-                <h3 className="text-lg font-medium text-gray-700">No doctors found matching your criteria</h3>
-                <p className="text-gray-500 mt-2">Try adjusting your filters or search term</p>
+                <h3 className="text-lg font-medium text-gray-700">
+                  No doctors found matching your criteria
+                </h3>
+                <p className="text-gray-500 mt-2">
+                  Try adjusting your filters or search term
+                </p>
               </div>
             )}
           </div>
 
           {filteredDoctors.length > 0 && (
             <div className="mt-6">
-              <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+              />
             </div>
           )}
         </div>
       </div>
     </main>
-  )
+  );
 }
