@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { Search } from "lucide-react"
 import type { Doctor } from "@/types/doctor"
 
@@ -19,8 +19,13 @@ export default function AutocompleteSearch({ doctors, onSearch, searchTerm }: Au
   const inputRef = useRef<HTMLInputElement>(null)
   const suggestionsRef = useRef<HTMLDivElement>(null)
 
-  // Update suggestions when input changes
+  // Update input value when searchTerm prop changes
   useEffect(() => {
+    setInputValue(searchTerm)
+  }, [searchTerm])
+
+  // Update suggestions when input changes
+  const updateSuggestions = useCallback(() => {
     if (inputValue.trim() === "") {
       setSuggestions([])
       return
@@ -32,6 +37,10 @@ export default function AutocompleteSearch({ doctors, onSearch, searchTerm }: Au
 
     setSuggestions(filtered)
   }, [inputValue, doctors])
+
+  useEffect(() => {
+    updateSuggestions()
+  }, [updateSuggestions])
 
   // Handle click outside to close suggestions
   useEffect(() => {

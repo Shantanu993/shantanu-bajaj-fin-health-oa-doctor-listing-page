@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { ChevronDown, ChevronUp } from "lucide-react"
 import type { Doctor } from "@/types/doctor"
 
@@ -55,13 +55,18 @@ export default function FilterPanel({
     "Homeopath",
   ]
 
-  // Update filters when any selection changes
-  useEffect(() => {
+  // Memoize the update function to prevent infinite loops
+  const applyFilters = useCallback(() => {
     updateFilters(consultationType, selectedSpecialties, sortBy)
   }, [consultationType, selectedSpecialties, sortBy, updateFilters])
 
-  const handleConsultationTypeChange = (type: string) => {
-    setConsultationType((prevType) => (prevType === type ? null : type))
+  // Update filters when any selection changes
+  useEffect(() => {
+    applyFilters()
+  }, [applyFilters])
+
+  const handleConsultationTypeChange = (type: string | null) => {
+    setConsultationType(type)
   }
 
   const handleSpecialtyChange = (specialty: string) => {
@@ -194,6 +199,17 @@ export default function FilterPanel({
                 data-testid="filter-in-clinic"
               />
               <span>In Clinic</span>
+            </label>
+
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="radio"
+                checked={consultationType === null}
+                onChange={() => handleConsultationTypeChange(null)}
+                className="form-radio"
+                data-testid="filter-all"
+              />
+              <span>All</span>
             </label>
           </div>
         )}

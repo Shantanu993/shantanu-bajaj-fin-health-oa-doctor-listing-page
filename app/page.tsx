@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import DoctorCard from "@/components/doctor-card"
 import FilterPanel from "@/components/filter-panel"
 import AutocompleteSearch from "@/components/autocomplete-search"
+import Pagination from "@/components/pagination"
 import type { Doctor } from "@/types/doctor"
 
 export default function Home() {
@@ -14,6 +15,10 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const doctorsPerPage = 10
+
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -21,6 +26,12 @@ export default function Home() {
   const consultationType = searchParams.get("consultationType")
   const specialties = searchParams.get("specialties")?.split(",").filter(Boolean) || []
   const sortBy = searchParams.get("sortBy")
+  const page = searchParams.get("page") ? Number.parseInt(searchParams.get("page") || "1") : 1
+
+  // Set current page from URL on initial load
+  useEffect(() => {
+    setCurrentPage(page)
+  }, [page])
 
   useEffect(() => {
     const fetchDoctors = async () => {
@@ -46,8 +57,8 @@ export default function Home() {
     fetchDoctors()
   }, [])
 
-  // Apply filters whenever URL params change
-  useEffect(() => {
+  // Memoize the filter function to prevent infinite loops
+  const applyFilters = useCallback(() => {
     if (doctors.length === 0) return
 
     let filtered = [...doctors]
@@ -64,6 +75,7 @@ export default function Home() {
       } else if (consultationType === "clinic") {
         filtered = filtered.filter((doctor) => doctor.in_clinic)
       }
+      // "all" option doesn't filter
     }
 
     // Filter by specialties
@@ -77,8 +89,8 @@ export default function Home() {
     if (sortBy) {
       if (sortBy === "fees") {
         filtered.sort((a, b) => {
-          const aFees = Number.parseInt(a.fees.replace(/[^\d]/g, ""))
-          const bFees = Number.parseInt(b.fees.replace(/[^\d]/g, ""))
+          const aFees = Number.parseInt(a.fees.replace(/[^\d]/g, "") || "0")
+          const bFees = Number.parseInt(b.fees.replace(/[^\d]/g, "") || "0")
           return aFees - bFees
         })
       } else if (sortBy === "experience") {
@@ -93,21 +105,63 @@ export default function Home() {
     setFilteredDoctors(filtered)
   }, [doctors, searchTerm, consultationType, specialties, sortBy])
 
+  // Apply filters when dependencies change
+  useEffect(() => {
+    applyFilters()
+  }, [applyFilters])
+
   // Update URL with filter params
-  const updateFilters = (type: string | null, specs: string[], sort: string | null) => {
-    const params = new URLSearchParams()
+  const updateFilters = useCallback(
+    (type: string | null, specs: string[], sort: string | null) => {
+      const params = new URLSearchParams(searchParams.toString())
 
-    if (type) params.set("consultationType", type)
-    if (specs.length > 0) params.set("specialties", specs.join(","))
-    if (sort) params.set("sortBy", sort)
+      if (type) {
+        params.set("consultationType", type)
+      } else {
+        params.delete("consultationType")
+      }
 
-    // Update the URL without refreshing the page
-    router.push(`?${params.toString()}`, { scroll: false })
-  }
+      if (specs.length > 0) {
+        params.set("specialties", specs.join(","))
+      } else {
+        params.delete("specialties")
+      }
 
-  const handleSearchChange = (value: string) => {
+      if (sort) {
+        params.set("sortBy", sort)
+      } else {
+        params.delete("sortBy")
+      }
+
+      // Reset to page 1 when filters change
+      params.set("page", "1")
+      setCurrentPage(1)
+
+      // Update the URL without refreshing the page
+      router.push(`?${params.toString()}`, { scroll: false })
+    },
+    [router, searchParams],
+  )
+
+  const handleSearchChange = useCallback((value: string) => {
     setSearchTerm(value)
-  }
+  }, [])
+
+  const handlePageChange = useCallback(
+    (page: number) => {
+      setCurrentPage(page)
+      const params = new URLSearchParams(searchParams.toString())
+      params.set("page", page.toString())
+      router.push(`?${params.toString()}`, { scroll: false })
+    },
+    [router, searchParams],
+  )
+
+  // Get current doctors for pagination
+  const indexOfLastDoctor = currentPage * doctorsPerPage
+  const indexOfFirstDoctor = indexOfLastDoctor - doctorsPerPage
+  const currentDoctors = filteredDoctors.slice(indexOfFirstDoctor, indexOfLastDoctor)
+  const totalPages = Math.ceil(filteredDoctors.length / doctorsPerPage)
 
   if (loading) {
     return (
@@ -153,8 +207,8 @@ export default function Home() {
           </div>
 
           <div className="space-y-4">
-            {filteredDoctors.length > 0 ? (
-              filteredDoctors.map((doctor) => <DoctorCard key={doctor.id} doctor={doctor} />)
+            {currentDoctors.length > 0 ? (
+              currentDoctors.map((doctor) => <DoctorCard key={doctor.id} doctor={doctor} />)
             ) : (
               <div className="bg-white rounded-lg shadow p-8 text-center">
                 <h3 className="text-lg font-medium text-gray-700">No doctors found matching your criteria</h3>
@@ -162,6 +216,12 @@ export default function Home() {
               </div>
             )}
           </div>
+
+          {filteredDoctors.length > 0 && (
+            <div className="mt-6">
+              <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
+            </div>
+          )}
         </div>
       </div>
     </main>
