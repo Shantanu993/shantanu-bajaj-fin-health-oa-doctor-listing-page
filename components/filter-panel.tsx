@@ -40,7 +40,7 @@ export default function FilterPanel({
     "Dentist",
     "Dermatologist",
     "Paediatrician",
-    "Gynaecologist",
+    "Gynaecologist and Obstetrician",
     "ENT",
     "Diabetologist",
     "Cardiologist",
