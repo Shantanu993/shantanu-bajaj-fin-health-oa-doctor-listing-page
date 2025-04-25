@@ -4,7 +4,7 @@
 
 ## Deployment
 
-Your project is live at:
+Project is live at:
 
 **[https://shantanu-bajaj-fin-health-doctor-listing.vercel.app/](https://shantanu-bajaj-fin-health-doctor-listing.vercel.app/)**
 
